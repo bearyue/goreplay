@@ -35,3 +35,5 @@ corpus
 crashers
 suppressions
 dist
+
+.worktrees/
