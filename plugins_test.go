@@ -41,3 +41,29 @@ func TestPluginsRegistration(t *testing.T) {
 	}
 
 }
+
+// TestMultipleHTTPOutputsRegistration verifies that repeating --output-http
+// results in one HTTPOutput instance per configured address.
+func TestMultipleHTTPOutputsRegistration(t *testing.T) {
+	Settings.InputDummy = nil
+	Settings.OutputDummy = nil
+	Settings.InputFile = nil
+	Settings.OutputHTTP = []string{
+		"http://192.168.1.1:8080",
+		"http://192.168.1.2:8080",
+	}
+
+	plugins := NewPlugins()
+
+	if len(plugins.Outputs) != 2 {
+		t.Fatalf("expected 2 HTTP outputs, got %d", len(plugins.Outputs))
+	}
+
+	for i, out := range plugins.Outputs {
+		if _, ok := out.(*HTTPOutput); !ok {
+			t.Errorf("output[%d] should be *HTTPOutput, got %T", i, out)
+		}
+	}
+
+	Settings.OutputHTTP = nil
+}

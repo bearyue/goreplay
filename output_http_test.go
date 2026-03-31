@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	_ "net/http/httputil"
 	"sync"
+	"sync/atomic"
 	"testing"
 )
 
@@ -235,4 +236,54 @@ func BenchmarkHTTPOutputTLS(b *testing.B) {
 
 	wg.Wait()
 	emitter.Close()
+}
+
+// TestMultipleHTTPOutputsBroadcast verifies that when multiple --output-http
+// addresses are configured every request is delivered to ALL of them (fan-out).
+func TestMultipleHTTPOutputsBroadcast(t *testing.T) {
+	const numRequests = 10
+
+	wg := new(sync.WaitGroup)
+	wg.Add(numRequests * 2) // each request must arrive at both servers
+
+	var counter1, counter2 int64
+
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt64(&counter1, 1)
+		wg.Done()
+	}))
+	defer server1.Close()
+
+	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt64(&counter2, 1)
+		wg.Done()
+	}))
+	defer server2.Close()
+
+	input := NewTestInput()
+	output1 := NewHTTPOutput(server1.URL, &HTTPOutputConfig{})
+	output2 := NewHTTPOutput(server2.URL, &HTTPOutputConfig{})
+
+	plugins := &InOutPlugins{
+		Inputs:  []PluginReader{input},
+		Outputs: []PluginWriter{output1, output2},
+	}
+	plugins.All = append(plugins.All, input, output1, output2)
+
+	emitter := NewEmitter()
+	go emitter.Start(plugins, "")
+
+	for i := 0; i < numRequests; i++ {
+		input.EmitGET()
+	}
+
+	wg.Wait()
+	emitter.Close()
+
+	if counter1 != numRequests {
+		t.Errorf("server1 expected %d requests, got %d", numRequests, counter1)
+	}
+	if counter2 != numRequests {
+		t.Errorf("server2 expected %d requests, got %d", numRequests, counter2)
+	}
 }
