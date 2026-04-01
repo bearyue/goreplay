@@ -7,6 +7,7 @@ DIST_PATH = dist
 CONTAINER_AMD=gor-amd64
 CONTAINER_ARM=gor-arm64
 RUN = docker run --rm -v `pwd`:$(SOURCE_PATH) -e AWS_ACCESS_KEY_ID=$(AWS_ACCESS_KEY_ID) -e AWS_SECRET_ACCESS_KEY=$(AWS_SECRET_ACCESS_KEY) -p 0.0.0.0:$(PORT):$(PORT) -t -i $(CONTAINER_AMD)
+DOCKER_RUN_TTY ?= -t -i
 BENCHMARK = BenchmarkRAWInput
 TEST = TestRawListenerBench
 BIN_NAME = gor
@@ -32,10 +33,10 @@ vendor:
 	go mod vendor
 
 release-bin-linux-amd64: vendor
-	docker run --platform linux/amd64 --rm -v `pwd`:$(SOURCE_PATH) -t --env GOOS=linux --env GOARCH=amd64 -i $(CONTAINER_AMD) go build -mod=vendor -o $(BIN_NAME) $(CUSTOM_TAGS) $(LDFLAGS) ./cmd/gor/
+	docker run --platform linux/amd64 --rm -v `pwd`:$(SOURCE_PATH) $(DOCKER_RUN_TTY) --env GOOS=linux --env GOARCH=amd64 $(CONTAINER_AMD) go build -mod=vendor -o $(BIN_NAME) $(CUSTOM_TAGS) $(LDFLAGS) ./cmd/gor/
 
 release-bin-linux-arm64: vendor
-	docker run --platform linux/arm64 --rm -v `pwd`:$(SOURCE_PATH) -t --env GOOS=linux --env GOARCH=arm64 -i $(CONTAINER_ARM) go build -mod=vendor -o $(BIN_NAME) $(CUSTOM_TAGS) $(LDFLAGS) ./cmd/gor/
+	docker run --platform linux/arm64 --rm -v `pwd`:$(SOURCE_PATH) $(DOCKER_RUN_TTY) --env GOOS=linux --env GOARCH=arm64 $(CONTAINER_ARM) go build -mod=vendor -o $(BIN_NAME) $(CUSTOM_TAGS) $(LDFLAGS) ./cmd/gor/
 
 release-bin-mac-amd64: vendor
 	GOOS=darwin go build -mod=vendor -o $(BIN_NAME) $(CUSTOM_TAGS) $(MAC_LDFLAGS) ./cmd/gor/
@@ -44,7 +45,7 @@ release-bin-mac-arm64: vendor
 	GOOS=darwin GOARCH=arm64 CGO_ENABLED=1 go build -mod=vendor -o $(BIN_NAME) $(CUSTOM_TAGS) $(MAC_LDFLAGS)
 
 release-bin-windows: vendor
-	docker run -it --rm -v `pwd`:$(SOURCE_PATH) -w $(SOURCE_PATH) -e CGO_ENABLED=1 docker.elastic.co/beats-dev/golang-crossbuild:1.19.2-main --build-cmd "make VERSION=$(VERSION) CUSTOM_BUILD_TAGS=$(CUSTOM_BUILD_TAGS) build" -p "windows/amd64" ./cmd/gor/
+	docker run $(DOCKER_RUN_TTY) --rm -v `pwd`:$(SOURCE_PATH) -w $(SOURCE_PATH) -e CGO_ENABLED=1 docker.elastic.co/beats-dev/golang-crossbuild:1.19.2-main --build-cmd "make VERSION=$(VERSION) CUSTOM_BUILD_TAGS=$(CUSTOM_BUILD_TAGS) build" -p "windows/amd64" ./cmd/gor/
 	mv $(BIN_NAME) "$(BIN_NAME).exe"
 
 release-linux-amd64: dist release-bin-linux-amd64

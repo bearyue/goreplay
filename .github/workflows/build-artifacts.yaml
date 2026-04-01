@@ -57,7 +57,7 @@ jobs:
       - name: Build binary
         shell: bash
         run: |
-          ${{ matrix.build_command }}
+          DOCKER_RUN_TTY="" ${{ matrix.build_command }}
           mkdir -p dist/${{ matrix.artifact_name }}
           mv "${{ matrix.output_file }}" "dist/${{ matrix.artifact_name }}/${{ matrix.output_file }}"
 
