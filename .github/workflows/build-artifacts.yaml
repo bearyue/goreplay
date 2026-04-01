@@ -1,0 +1,87 @@
+name: build-artifacts
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "**"
+    tags:
+      - "v*"
+  pull_request:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.artifact_name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - artifact_name: gor_linux_amd64
+            build_command: make build-amd64-env && make VERSION=${VERSION} release-bin-linux-amd64
+            output_file: gor
+            archive_ext: tar.gz
+          - artifact_name: gor_linux_arm64
+            build_command: make build-arm64-env && make VERSION=${VERSION} release-bin-linux-arm64
+            output_file: gor
+            archive_ext: tar.gz
+          - artifact_name: gor_windows_amd64
+            build_command: make VERSION=${VERSION} release-bin-windows
+            output_file: gor.exe
+            archive_ext: zip
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Prepare build metadata
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME}"
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            VERSION="manual-${GITHUB_SHA::7}"
+          fi
+          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
+
+      - name: Build binary
+        shell: bash
+        run: |
+          ${{ matrix.build_command }}
+          mkdir -p dist/${{ matrix.artifact_name }}
+          mv "${{ matrix.output_file }}" "dist/${{ matrix.artifact_name }}/${{ matrix.output_file }}"
+
+      - name: Package archive
+        shell: bash
+        run: |
+          ARCHIVE_NAME="${{ matrix.artifact_name }}"
+          if [[ "${{ matrix.archive_ext }}" == "zip" ]]; then
+            (cd "dist/${{ matrix.artifact_name }}" && zip -r "../${ARCHIVE_NAME}.zip" "${{ matrix.output_file }}")
+          else
+            tar -C "dist/${{ matrix.artifact_name }}" -czf "dist/${ARCHIVE_NAME}.tar.gz" "${{ matrix.output_file }}"
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: |
+            dist/${{ matrix.artifact_name }}
+            dist/${{ matrix.artifact_name }}.${{ matrix.archive_ext }}
+          if-no-files-found: error
+
+      - name: Upload release asset
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/${{ matrix.artifact_name }}.${{ matrix.archive_ext }}
