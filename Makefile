@@ -33,10 +33,10 @@ vendor:
 	go mod vendor
 
 release-bin-linux-amd64: vendor
-	docker run --platform linux/amd64 --rm -v `pwd`:$(SOURCE_PATH) $(DOCKER_RUN_TTY) --env GOOS=linux --env GOARCH=amd64 $(CONTAINER_AMD) go build -mod=vendor -o $(BIN_NAME) $(CUSTOM_TAGS) $(LDFLAGS) ./cmd/gor/
+	docker run --platform linux/amd64 --rm -v `pwd`:$(SOURCE_PATH) $(DOCKER_RUN_TTY) --env GOOS=linux --env GOARCH=amd64 $(CONTAINER_AMD) go build -buildvcs=false -mod=vendor -o $(BIN_NAME) $(CUSTOM_TAGS) $(LDFLAGS) ./cmd/gor/
 
 release-bin-linux-arm64: vendor
-	docker run --platform linux/arm64 --rm -v `pwd`:$(SOURCE_PATH) $(DOCKER_RUN_TTY) --env GOOS=linux --env GOARCH=arm64 $(CONTAINER_ARM) go build -mod=vendor -o $(BIN_NAME) $(CUSTOM_TAGS) $(LDFLAGS) ./cmd/gor/
+	docker run --platform linux/arm64 --rm -v `pwd`:$(SOURCE_PATH) $(DOCKER_RUN_TTY) --env GOOS=linux --env GOARCH=arm64 $(CONTAINER_ARM) go build -buildvcs=false -mod=vendor -o $(BIN_NAME) $(CUSTOM_TAGS) $(LDFLAGS) ./cmd/gor/
 
 release-bin-mac-amd64: vendor
 	GOOS=darwin go build -mod=vendor -o $(BIN_NAME) $(CUSTOM_TAGS) $(MAC_LDFLAGS) ./cmd/gor/
@@ -80,7 +80,7 @@ clean:
 	rm -rf $(DIST_PATH)
 
 build:
-	go build -mod=vendor -o $(BIN_NAME) $(CUSTOM_TAGS) $(LDFLAGS)
+	go build -buildvcs=false -mod=vendor -o $(BIN_NAME) $(CUSTOM_TAGS) $(LDFLAGS)
 
 install:
 	go install $(CUSTOM_TAGS) $(MAC_LDFLAGS)
